@@ -6,7 +6,7 @@ const doc = {
     description:
       "ebay-ecommerce- doubts send query damanellorekarthik@gmail.com",
   },
-  host: "localhost:5550",
+  host: "https://ebay-ecommerce.onrender.com/",
 };
 
 const outputFile = "./swagger-output.json";
