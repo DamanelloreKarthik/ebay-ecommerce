@@ -39,4 +39,38 @@ const getAllProductsData = async (req, res) => {
   }
 };
 
-module.exports = { createProduct, getAllProductsData };
+// Product: GET individual product
+const getIndividualProductDetails = async (req, res) => {
+  const { productId } = req.params;
+
+  try {
+    if (!productId) {
+      return res.status(400).json({
+        type: "error",
+        message: "Product ID is required",
+      });
+    }
+
+    const productData = await productModelSchema.findById(productId);
+
+    if (!productData) {
+      return res.status(404).json({
+        type: "error",
+        message: "Product not found",
+      });
+    }
+
+    res.status(200).json({
+      type: "success",
+      productData,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = {
+  createProduct,
+  getAllProductsData,
+  getIndividualProductDetails,
+};

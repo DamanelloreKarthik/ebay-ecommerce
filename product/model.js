@@ -22,6 +22,10 @@ const ProductModelSchema = new Schema({
     type: Number,
     required: true,
   },
+  productId: {
+    type: String,
+    required: false,
+  },
 });
 
 const productModelSchema = mongoose.model("product", ProductModelSchema);
