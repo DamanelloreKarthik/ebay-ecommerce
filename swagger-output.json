@@ -5,7 +5,7 @@
     "description": "ebay-ecommerce- doubts send query damanellorekarthik@gmail.com",
     "version": "1.0.0"
   },
-  "host": "localhost:5550",
+  "host": "https://ebay-ecommerce.onrender.com/",
   "basePath": "/",
   "schemes": [
     "http"
@@ -128,6 +128,33 @@
           },
           "400": {
             "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/product/getproduct/{productId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
