@@ -1,9 +1,10 @@
 const nodemailer = require("nodemailer");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const Payment = require("../payment/model");
 const Cart = require("../cart/model");
 const User = require("../user/model");
 
-// Create a transporter for sending emails
+// Setup the transporter for email sending
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
@@ -14,42 +15,33 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Payment: Create a payment
+// Payment creation function
 const createPayment = async (req, res) => {
   const { userId, address } = req.body;
 
   try {
-    // Validate request body
     if (!userId || !address) {
       return res.status(400).json({ error: "All fields are required." });
     }
 
-    // Fetch cart data for the user
+    // Fetch cart items and user info
     const cartItems = await Cart.find({ userId });
-
-    // Check if cart is empty
     if (cartItems.length === 0) {
       return res.status(400).json({ error: "No items in cart." });
     }
 
-    // Fetch user details to get the email
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    // Calculate total price and validate product data
     let totalPrice = 0;
     const cartData = cartItems.map((item) => {
-      // Check if productDetails and product name exist
       const productName = item?.productDetails?.title;
       const productPrice = Number(item?.productDetails?.price);
 
-      if (!productName) {
-        throw new Error("Missing product name in cart item.");
-      }
-      if (isNaN(productPrice)) {
-        throw new Error("Invalid product price in cart item.");
+      if (!productName || isNaN(productPrice)) {
+        throw new Error("Invalid product data in cart item.");
       }
 
       const itemTotal = productPrice * Number(item.quantity);
@@ -61,7 +53,7 @@ const createPayment = async (req, res) => {
       };
     });
 
-    // Save payment information to your database
+    // Save payment record with status 'Pending'
     const paymentRecord = await Payment.create({
       userId,
       cartData,
@@ -70,7 +62,27 @@ const createPayment = async (req, res) => {
       status: "Pending",
     });
 
-    // Prepare the email content
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: cartItems.map((item) => ({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: item.productDetails.title,
+            description: item.productDetails.description,
+            images: [item.productDetails.image],
+          },
+          unit_amount: Math.round(item.productDetails.price * 100),
+        },
+        quantity: item.quantity,
+      })),
+      mode: "payment",
+      success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.CLIENT_URL}/cancel`,
+    });
+
+    // Send email confirmation
     const emailContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);">
       <div style="text-align: center; padding-bottom: 20px;">
@@ -79,13 +91,13 @@ const createPayment = async (req, res) => {
       <h1 style="color: #333; text-align: center; font-size: 24px;">Order Confirmation</h1>
       <p style="font-size: 16px; color: #666; text-align: center; margin-bottom: 20px;">Thank you for your order!</p>
       <div style="border-top: 1px solid #eee; margin: 20px 0;"></div>
-  
+
       <h3 style="color: #333; font-size: 18px;">Shipping Details</h3>
       <p style="font-size: 16px; color: #666; line-height: 1.5;">
         <strong>User ID:</strong> ${userId}<br>
         <strong>Shipping Address:</strong> ${address}
       </p>
-  
+
       <h3 style="color: #333; font-size: 18px;">Order Summary</h3>
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
         <thead>
@@ -121,20 +133,19 @@ const createPayment = async (req, res) => {
             .join("")}
         </tbody>
       </table>
-  
+
       <h2 style="text-align: right; color: #333; font-size: 20px; margin-top: 10px;">Total: $${Number(
         totalPrice.toFixed(2)
       )}</h2>
-  
+
       <div style="border-top: 1px solid #eee; margin: 20px 0;"></div>
-  
+
       <p style="font-size: 16px; color: #666; text-align: center; margin-top: 20px;">
         Need help? <a href="mailto:damanellorekarthik@gmail.com" style="color: #007bff; text-decoration: underline;">Contact Support</a>
       </p>
     </div>
   `;
 
-    // Send email to user
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
@@ -142,14 +153,10 @@ const createPayment = async (req, res) => {
       html: emailContent,
     });
 
-    // Clear the user's cart after creating the payment
+    // Clear user's cart
     await Cart.deleteMany({ userId });
 
-    res.status(200).json({
-      message:
-        "Order created successfully. A confirmation email has been sent.",
-      paymentRecord,
-    });
+    res.status(200).json({ url: session.url });
   } catch (error) {
     console.error("Payment error:", error);
     res
