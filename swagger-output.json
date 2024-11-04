@@ -5,7 +5,7 @@
     "description": "ebay-ecommerce- doubts send query damanellorekarthik@gmail.com",
     "version": "1.0.0"
   },
-  "host": "ebay-ecommerce.onrender.com/",
+  "host": "ebay-ecommerce.onrender.com",
   "basePath": "/",
   "schemes": [
     "https"
