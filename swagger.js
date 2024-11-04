@@ -6,7 +6,7 @@ const doc = {
     description:
       "ebay-ecommerce- doubts send query damanellorekarthik@gmail.com",
   },
-  host: "https://ebay-ecommerce.onrender.com/",
+  host: "ebay-ecommerce.onrender.com/",
   schemes: ["https"],
 };
 

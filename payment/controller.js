@@ -1,5 +1,4 @@
 const nodemailer = require("nodemailer");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const Payment = require("../payment/model");
 const Cart = require("../cart/model");
 const User = require("../user/model");
@@ -60,26 +59,6 @@ const createPayment = async (req, res) => {
       address,
       totalPrice,
       status: "Pending",
-    });
-
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: cartItems.map((item) => ({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: item.productDetails.title,
-            description: item.productDetails.description,
-            images: [item.productDetails.image],
-          },
-          unit_amount: Math.round(item.productDetails.price * 100),
-        },
-        quantity: item.quantity,
-      })),
-      mode: "payment",
-      success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/cancel`,
     });
 
     // Send email confirmation
@@ -156,7 +135,11 @@ const createPayment = async (req, res) => {
     // Clear user's cart
     await Cart.deleteMany({ userId });
 
-    res.status(200).json({ url: session.url });
+    res.status(200).json({
+      message:
+        "Order created successfully. A confirmation email has been sent.",
+      paymentRecord,
+    });
   } catch (error) {
     console.error("Payment error:", error);
     res
